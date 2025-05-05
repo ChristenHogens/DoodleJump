@@ -144,7 +144,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Code\BreakablePlatform.cpp" />
     <ClCompile Include="Code\Main.cpp" />
+    <ClCompile Include="Code\Platform.cpp" />
+    <ClCompile Include="Code\MovingXPlatform.cpp" />
+    <ClCompile Include="Code\MovingYPlatform.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Code\BreakablePlatform.h" />
+    <ClInclude Include="Code\Constant.h" />
+    <ClInclude Include="Code\Platform.h" />
+    <ClInclude Include="Code\MovingXPlatform.h" />
+    <ClInclude Include="Code\MovingYPlatform.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

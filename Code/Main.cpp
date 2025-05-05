@@ -1,25 +1,18 @@
 #include <SFML/Graphics.hpp>
+#include <vector>
+#include <memory>
 #include <cstdlib>
 #include <ctime>
+#include <iostream>
 
-const int windowWidth = 400;
-const int windowHeight = 600;
-const int platformCount = 8;
+#include "Platform.h"
+#include "MovingXPlatform.h"
+#include "MovingYPlatform.h"
+#include "BreakablePlatform.h"
+#include "Constant.h"
 
-enum class PlatformType { 
-    Normal, 
-    MovingX, 
-    MovingY, 
-    Breakable 
-};
-
-struct Platform {
-    float x, y;
-    PlatformType type;
-    bool broken = false; // для крихких платформ
-    float speedX = 1.0f; // для рухомих по осі X
-    float speedY = 1.0f; // для рухомих по осі Y
-};
+using namespace std;
+using namespace sf;
 
 enum class GameState {
     Menu,
@@ -29,85 +22,89 @@ enum class GameState {
 
 GameState currentState = GameState::Menu;
 
-int main() 
+int main()
 {
-
     int lives = 3;
     int score = 0;
     int highScore = 0;
 
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    srand(static_cast<unsigned>(std::time(nullptr)));
 
-    sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "Doodle Jump");
+    RenderWindow window(VideoMode(windowWidth, windowHeight), "Doodle Jump");
     window.setFramerateLimit(60);
 
-    //Background
-    sf::Texture backgroundTexture;
-    if (!backgroundTexture.loadFromFile("C:\\Course\\1\\DoodleJump\\Images\\background.png"))
+    // Background
+    Texture backgroundTexture;
+    if (!backgroundTexture.loadFromFile("Images\\background.png"))
     {
-        return -1; // Вихід, якщо фон не завантажився
+        cout << "Error loading background texture!" << endl;
+        return -1;
+    }
+    Sprite backgroundSprite(backgroundTexture);
+
+    // Buttons and Text
+    Font font;
+    if (!font.loadFromFile("Font\\BrownieStencil.ttf"))
+    {
+        cout << "Error loading font!" << endl;
+        return -1;
     }
 
-    sf::Sprite backgroundSprite(backgroundTexture);
-
-    //Buttons
-    sf::Font font;
-    if (!font.loadFromFile("C:\\Course\\1\\DoodleJump\\Font\\BrownieStencil.ttf"))
-    {
-        return -1; // Вихід, якщо шрифт не завантажився
-    }
-
-    sf::Text title("Doodle Jump", font, 40);
+    Text title("Doodle Jump", font, 40);
     title.setPosition(85, 100);
-    title.setFillColor(sf::Color::Yellow);
+    title.setFillColor(Color::Yellow);
 
-    sf::Text startBtn("Start", font, 30);
+    Text startBtn("Start", font, 30);
     startBtn.setPosition(170, 300);
-    startBtn.setFillColor(sf::Color::Green);
+    startBtn.setFillColor(Color::Green);
 
-    sf::Text exitBtn("Exit", font, 30);
+    Text exitBtn("Exit", font, 30);
     exitBtn.setPosition(185, 400);
-    exitBtn.setFillColor(sf::Color::Red);
+    exitBtn.setFillColor(Color::Red);
 
-    //Live text
-    sf::Text livesText;
+    Text livesText;
     livesText.setFont(font);
     livesText.setCharacterSize(24);
-    livesText.setFillColor(sf::Color::Red);
+    livesText.setFillColor(Color::Red);
     livesText.setPosition(10, 10);
 
-    //Score text
-    sf::Text scoreText;
+    Text scoreText;
     scoreText.setFont(font);
     scoreText.setCharacterSize(24);
-    scoreText.setFillColor(sf::Color::Black);
+    scoreText.setFillColor(Color::Black);
     scoreText.setPosition(200, 10);
 
-    // Textures
-    sf::Texture doodleTexture, platformTexture, platformMovingXTexture, platformMovingYTexture, platformBreakableTexture;
-    doodleTexture.loadFromFile("C:\\Course\\1\\DoodleJump\\Images\\doodle.png");
-    platformTexture.loadFromFile("C:\\Course\\1\\DoodleJump\\Images\\platform.png");
-    platformMovingXTexture.loadFromFile("C:\\Course\\1\\DoodleJump\\Images\\platform_moving_x.png");
-    platformMovingYTexture.loadFromFile("C:\\Course\\1\\DoodleJump\\Images\\platform_moving_y.png");
-    platformBreakableTexture.loadFromFile("C:\\Course\\1\\DoodleJump\\Images\\platform_breakable.png");
-
     // Doodle sprite
-    sf::Sprite doodle(doodleTexture);
+    Texture doodleTexture;
+    if (!doodleTexture.loadFromFile("Images\\doodle.png"))
+    {
+        cout << "Error loading doodle texture!" << endl;
+        return -1;
+    }
+    Sprite doodle(doodleTexture);
     doodle.setPosition(200, 300);
 
     // Platforms
-    Platform platforms[platformCount];
-  
+    vector<Platform*> platforms;
+
     for (int i = 0; i < platformCount; i++)
     {
-        platforms[i].x = std::rand() % windowWidth;
-        platforms[i].y = std::rand() % windowHeight;
+        float platX = rand() % windowWidth;
+        float platY = rand() % windowHeight;
 
         int typeChance = std::rand() % 100;
-        if (typeChance < 60) platforms[i].type = PlatformType::Normal;
-        else if (typeChance < 75) platforms[i].type = PlatformType::MovingX;
-        else if (typeChance < 90) platforms[i].type = PlatformType::MovingY;
-        else platforms[i].type = PlatformType::Breakable;
+        if (typeChance < 60) {
+            platforms.push_back(new Platform(platX, platY, "Images\\platform.png"));
+        }
+        else if (typeChance < 75) {
+            platforms.push_back(new MovingXPlatform(platX, platY, "Images\\platform_moving_x.png"));
+        }
+        else if (typeChance < 90) {
+            platforms.push_back(new MovingYPlatform(platX, platY, "Images\\platform_moving_y.png"));
+        }
+        else {
+            platforms.push_back(new BreakablePlatform(platX, platY, "Images\\platform_breakable.png"));
+        }
     }
 
     float x = 100, y = 100;
@@ -117,25 +114,32 @@ int main()
 
     while (window.isOpen())
     {
-
-        sf::Event e;
+        Event e;
         while (window.pollEvent(e))
         {
-            if (e.type == sf::Event::Closed)
+            if (e.type == Event::Closed)
                 window.close();
 
-            //Check "play" and "Exit" buttons
             if (currentState == GameState::Menu)
             {
-                if (e.type == sf::Event::MouseButtonPressed)
+                if (e.type == Event::MouseButtonPressed)
                 {
-                    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-
+                    Vector2i mousePos = Mouse::getPosition(window);
                     if (startBtn.getGlobalBounds().contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                     {
                         currentState = GameState::Playing;
+                        // Reset game state for new game
+                        lives = 3;
+                        score = 0;
+                        x = 100; y = 100; dy = 0;
+                        for (Platform* plat : platforms)
+                        {
+                            if (plat != nullptr)
+                            {
+                                plat->reset(rand() % windowHeight);
+                            }
+                        }
                     }
-
                     if (exitBtn.getGlobalBounds().contains(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y)))
                     {
                         window.close();
@@ -143,152 +147,142 @@ int main()
                 }
             }
 
-            //Check "R" and "Esc" buttons
             if (currentState == GameState::GameOver)
             {
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::R))
+                if (e.type == Event::KeyPressed)
                 {
-                    currentState = GameState::Playing;
-                    lives = 3;
-                    score = 0;
-                    x = 100; y = 100; dy = 0;
-                    for (int i = 0; i < platformCount; i++)
+                    if (e.key.code == Keyboard::R)
                     {
-                        platforms[i].x = std::rand() % windowWidth;
-                        platforms[i].y = std::rand() % windowHeight;
+                        currentState = GameState::Playing;
+                        lives = 3;
+                        score = 0;
+                        x = 100; y = 100; dy = 0;
+                        for (Platform* plat : platforms)
+                        {
+                            if (plat != nullptr)
+                            {
+                                plat->reset(std::rand() % windowHeight);
+                            }
+                        }
                     }
-                }
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
-                {
-                    window.close();
+                    if (e.key.code == Keyboard::Escape)
+                    {
+                        window.close();
+                    }
                 }
             }
         }
 
-        // Input
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) dx = 4;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) dx = -4;
-
-        x += dx;
-
-        // Screen wrap
-        if (x > windowWidth) x = 0;
-        if (x < 0) x = windowWidth;
-
-        dy += gravity;
-        y += dy;
-
-        // Update platform positions (moving types)
-        for (int i = 0; i < platformCount; i++)
+        if (currentState == GameState::Playing)
         {
-            if (platforms[i].type == PlatformType::MovingX)
+            // Input
+            if (Keyboard::isKeyPressed(Keyboard::Right)) dx = 4;
+            else if (Keyboard::isKeyPressed(Keyboard::Left)) dx = -4;
+            else dx = 0;
+
+            x += dx;
+
+            // Screen wrap
+            if (x > windowWidth) x = 0;
+            if (x < 0) x = windowWidth;
+
+            dy += gravity;
+            y += dy;
+
+            // Update platform positions (moving types) and check collisions
+            for (Platform* plat : platforms)
             {
-                platforms[i].x += platforms[i].speedX;
-                if (platforms[i].x < 0 || platforms[i].x > windowWidth - 68)
+                if (plat == nullptr) continue;
+
+                plat->update();
+
+                if (!plat->isBroken() && plat->checkCollision(x, y, doodle.getGlobalBounds().width, doodle.getGlobalBounds().height, dy))
                 {
-                    platforms[i].speedX *= -1;
+                    dy = jumpStrength;
                 }
             }
-            else if (platforms[i].type == PlatformType::MovingY)
+
+            // Live check
+            if (y > windowHeight)
             {
-                platforms[i].y += platforms[i].speedY;
-                if (platforms[i].y < 0 || platforms[i].y > windowHeight - 14)
+                lives--;
+                if (lives > 0)
                 {
-                    platforms[i].speedY *= -1;
-                }
-            }
-        }
+                    // Reset player position
+                    x = 100;
+                    y = 100;
+                    dy = 0;
 
-        //live check
-        if (y > windowHeight)
-        {
-            lives--;
-            if (lives > 0)
-            {
-                // Відновлюємо позицію гравця
-                x = 100;
-                y = 100;
-                dy = 0;
-
-                // Перерозташовуємо платформи
-                for (int i = 0; i < platformCount; i++)
-                {
-                    platforms[i].x = std::rand() % windowWidth;
-                    platforms[i].y = std::rand() % windowHeight;
-                }
-            }
-            else
-            {
-                currentState = GameState::GameOver;
-                score = 0;
-            }
-        }
-
-        // Platform collision
-        for (int i = 0; i < platformCount; i++)
-        {
-            if (platforms[i].type == PlatformType::Breakable && platforms[i].broken)
-            {
-                continue;
-            }
-
-            if ((x + 50 > platforms[i].x) && (x + 20 < platforms[i].x + 68) &&
-                (y + 70 > platforms[i].y) && (y + 70 < platforms[i].y + 14) &&
-                dy > 0)
-            {
-                dy = jumpStrength;
-
-                if (platforms[i].type == PlatformType::Breakable)
-                {
-                    platforms[i].broken = true;
-                }
-            }
-        }
-
-        // Scroll screen up when player goes up
-        if (y < 200)
-        {
-            for (int i = 0; i < platformCount; i++)
-            {
-                platforms[i].y -= dy;
-                if (platforms[i].y > windowHeight)
-                {
-                    platforms[i].y = 0;
-                    platforms[i].x = std::rand() % windowWidth;
-
-                    int typeChance = std::rand() % 100;
-                    if (typeChance < 60)
+                    // Reset platforms
+                    for (Platform* plat : platforms)
                     {
-                        platforms[i].type = PlatformType::Normal;
+                        if (plat != nullptr)
+                        {
+                            plat->reset(rand() % windowHeight);
+                        }
                     }
-                    else if (typeChance < 75)
+                }
+                else
+                {
+                    currentState = GameState::GameOver;
+                    if (score > highScore) highScore = score;
+                    score = 0; // Reset score on game over
+                }
+            }
+
+            // Scroll screen up when player goes up
+            if (y < 200)
+            {
+                for (size_t i = 0; i < platforms.size(); ++i)
+                {
+                    if (platforms[i] == nullptr)
                     {
-                        platforms[i].type = PlatformType::MovingX;
-                    }
-                    else if (typeChance < 90)
-                    {
-                        platforms[i].type = PlatformType::MovingY;
-                    }
-                    else
-                    {
-                        platforms[i].type = PlatformType::Breakable;
+                        continue;
                     }
 
-                    platforms[i].broken = false;
+                    platforms[i]->move(dy);
+                    if (platforms[i]->y > windowHeight)
+                    {
+                        delete platforms[i];
+                        platforms[i] = nullptr; 
+
+                        float newPlatX;
+                        int typeChance = rand() % 100;
+                        if (typeChance < 60)
+                        {
+                            newPlatX = rand() % (windowWidth - 68); 
+                            platforms[i] = new Platform(newPlatX, 0, "Images\\platform.png");
+                        }
+                        else if (typeChance < 75)
+                        {
+                            newPlatX = rand() % (windowWidth - 68);
+                            platforms[i] = new MovingXPlatform(newPlatX, 0, "Images\\platform_moving_x.png");
+                        }
+                        else if (typeChance < 90)
+                        {
+                            newPlatX = rand() % (windowWidth - 68);
+                            platforms[i] = new MovingYPlatform(newPlatX, 0, "Images\\platform_moving_y.png");
+                        }
+                        else
+                        {
+                            newPlatX = std::rand() % (windowWidth - 68);
+                            platforms[i] = new BreakablePlatform(newPlatX, 0, "Images\\platform_breakable.png");
+                        }
+                    }
+                }
+                y = 200;
+                score += static_cast<int>(-dy);
+                if (score > highScore)
+                {
+                    highScore = score;
                 }
             }
-            y = 200;
-            score += static_cast<int>(-dy); // чим сильніше підстрибок — тим більше очок
-            if (score > highScore)
-            {
-                highScore = score;
-            }
-        }
 
-        doodle.setPosition(x, y);
+            doodle.setPosition(x, y);
+        }
 
         // Drawing
-        window.clear(sf::Color::White);
+        window.clear(Color::White);
 
         if (currentState == GameState::Menu)
         {
@@ -298,68 +292,63 @@ int main()
         }
         else if (currentState == GameState::Playing)
         {
-            
-            livesText.setString("Lives: " + std::to_string(lives));
-            scoreText.setString("Score: " + std::to_string(score));
+            livesText.setString("Lives: " + to_string(lives));
+            scoreText.setString("Score: " + to_string(score));
 
             window.draw(backgroundSprite);
-
             window.draw(livesText);
-
             window.draw(scoreText);
-
             window.draw(doodle);
 
-            for (int i = 0; i < platformCount; i++)
+            for (Platform* plat : platforms)
             {
-                if (platforms[i].type == PlatformType::Breakable && platforms[i].broken)
+                if (plat == nullptr)
                 {
-                    continue; // не малюємо зламану крихку платформу
+                    continue;
                 }
-
-                sf::Sprite platform;
-
-                if (platforms[i].type == PlatformType::Breakable)
+                if (plat->isBroken())
                 {
-                    if (platforms[i].broken) continue;
-                    platform.setTexture(platformBreakableTexture);
+                    continue;
                 }
-                else if (platforms[i].type == PlatformType::MovingX)
-                {
-                    platform.setTexture(platformMovingXTexture);
-                }
-                else if (platforms[i].type == PlatformType::MovingY)
-                {
-                    platform.setTexture(platformMovingYTexture);
-                }
-                else
-                {
-                    platform.setTexture(platformTexture);
-                }
-
-                platform.setPosition(platforms[i].x, platforms[i].y);
-                window.draw(platform);
+                window.draw(plat->sprite);
             }
         }
         else if (currentState == GameState::GameOver)
         {
-            sf::Text gameOverText("Game Over", font, 40);
+            Text gameOverText("Game Over", font, 40);
             gameOverText.setPosition(100, 200);
-            gameOverText.setFillColor(sf::Color::Red);
+            gameOverText.setFillColor(Color::Red);
 
-            sf::Text retryText("Press R to Retry\n  or Esc to Exit", font, 24);
-            retryText.setPosition(100, 300);
-            retryText.setFillColor(sf::Color::Black);
+            Text finalScoreText("Final Score: " + std::to_string(score), font, 24);
+            finalScoreText.setPosition(100, 250);
+            finalScoreText.setFillColor(Color::Black);
+
+            Text highScoreDisplay("High Score: " + std::to_string(highScore), font, 24);
+            highScoreDisplay.setPosition(100, 280);
+            highScoreDisplay.setFillColor(Color::Blue);
+
+
+            Text retryText("Press R to Retry\n  or Esc to Exit", font, 24);
+            retryText.setPosition(100, 350);
+            retryText.setFillColor(Color::Black);
+
 
             window.draw(gameOverText);
+            window.draw(finalScoreText);
+            window.draw(highScoreDisplay);
             window.draw(retryText);
-            score = 0;
+
         }
 
         window.display();
-
-        dx = 0; // reset horizontal movement
     }
+
+    // Clearing the memory allocated to platforms
+    for (Platform* plat : platforms)
+    {
+        delete plat;
+    }
+    platforms.clear();
 
     return 0;
 }
